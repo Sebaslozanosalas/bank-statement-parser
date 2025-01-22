@@ -1,3 +1,4 @@
+import pandas as pd
 import pdfplumber
 import os
 import re
@@ -53,10 +54,10 @@ def fill_missing_values_on_tables(tables: dict, raw_text: dict) -> dict:
             cleaned_table = [table[0]]
             for table_row in table[1:]:
                 if None in table_row or "" in table_row:
-                    print(f"Page {page_num}, table {table_num} has a missing value:")
-                    print(f"Original row: {[cell for cell in table_row]}")
+                    # print(f"Page {page_num}, table {table_num} has a missing value:")
+                    # print(f"Original row: {[cell for cell in table_row]}")
                     cleaned_row = fill_row_with_missing_values(table_row, raw_text[page_num])
-                    print(f"Cleaned row: {[cell for cell in cleaned_row]}\n")
+                    # print(f"Cleaned row: {[cell for cell in cleaned_row]}\n")
                 else:
                     cleaned_row = table_row
                 cleaned_table.append(cleaned_row)
@@ -101,9 +102,28 @@ def fill_row_with_missing_values(row, extracted_text):
     # If no match is found, return the row as is.
     return row  
 
+def union_tables(tables: dict) -> list:
 
-def print_tables(tables_found: dict) -> None:
-    for page_num, tables in tables_found.items():
+    final_table = []
+
+    final_table.append([
+        "page_num",
+        "operation_dt",
+        "charge_dt",
+        "transaction_desc",
+        "amount"
+    ])
+
+    for page_num, tables in tables.items():
+        for table in tables:
+            for row in table[1:]:
+                final_table.append([page_num] + row)
+    
+    return final_table
+
+
+def print_table_dict(tables: dict) -> None:
+    for page_num, tables in tables.items():
         print(f"Page {page_num}: {len(tables)} tables found: ")
 
         for table_num, table in enumerate(tables, 1):
@@ -111,6 +131,21 @@ def print_tables(tables_found: dict) -> None:
             print(f"\t{table[0]}\n")
 
         print("\n")
+
+
+def print_final_table(final_table: list, max_desc_len: int=30) -> None:
+    # Convert to DataFrame for tabular display
+    df = pd.DataFrame(
+        final_table[1:],  # Skip the header row for DataFrame initialization
+        columns=final_table[0]  # Use the header row as columns
+    )
+
+    df['transaction_desc'] = df['transaction_desc'].apply(
+        lambda x: (x[:max_desc_len] + '...') if len(x) > max_desc_len else x
+    )
+
+    print(df.to_string(index=False))
+    print( f"\n\t\tTotal rows: {df.shape[0]}")
 
 
 def main():
@@ -125,8 +160,10 @@ def main():
     # Clean missing (None) values
     tables = fill_missing_values_on_tables(tables, raw_text)
 
-    # Print tables
-    #print_tables(tables)
+    # Union all tables
+    final_table = union_tables(tables)
+
+    print_final_table(final_table, 60)
 
 
 if __name__ == "__main__":
