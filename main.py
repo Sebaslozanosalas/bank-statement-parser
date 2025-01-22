@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv() 
 
 
-def read_pdf_file(file_path: str) -> tuple[dict, dict]:
+def get_tables_and_text_from_file(file_path: str) -> tuple[dict, dict]:
     tables_found = {}
     extracted_text = {}
 
@@ -20,8 +20,8 @@ def read_pdf_file(file_path: str) -> tuple[dict, dict]:
     return tables_found, extracted_text
 
 
-def filter_relevant_tables(tables_found: dict) -> dict:
-    filtered_tables = {}
+def filter_transaction_tables(tables_found: dict) -> dict:
+    transaction_tables = {}
 
     target_headers = [
         "Fecha\nde la\noperación",
@@ -37,12 +37,12 @@ def filter_relevant_tables(tables_found: dict) -> dict:
             if table[0] == target_headers:
                 matched_tables.append(table)
         if len(matched_tables) > 0:
-            filtered_tables[page_num] = matched_tables
+            transaction_tables[page_num] = matched_tables
     
-    return filtered_tables
+    return transaction_tables
 
 
-def clean_missing_values(tables: dict, raw_text: dict) -> dict:
+def fill_missing_values_on_tables(tables: dict, raw_text: dict) -> dict:
     cleaned_tables = {}
 
     for page_num, tables_on_page in tables.items():
@@ -55,7 +55,7 @@ def clean_missing_values(tables: dict, raw_text: dict) -> dict:
                 if None in table_row or "" in table_row:
                     print(f"Page {page_num}, table {table_num} has a missing value:")
                     print(f"Original row: {[cell for cell in table_row]}")
-                    cleaned_row = extract_missing_values(table_row, raw_text[page_num])
+                    cleaned_row = fill_row_with_missing_values(table_row, raw_text[page_num])
                     print(f"Cleaned row: {[cell for cell in cleaned_row]}\n")
                 else:
                     cleaned_row = table_row
@@ -68,7 +68,7 @@ def clean_missing_values(tables: dict, raw_text: dict) -> dict:
     return cleaned_tables
 
 
-def extract_missing_values(row, extracted_text):
+def fill_row_with_missing_values(row, extracted_text):
     # Create a partial representation of the row by joining all known values as a single string
     # Missing values are replaced with empty strings
     partial_row = " ".join([str(cell) if cell else "" for cell in row]).strip()
@@ -117,16 +117,16 @@ def main():
     file_path = os.getenv("FILE_PATH")
     
     # Extract raw tables and text
-    raw_tables, raw_text = read_pdf_file(file_path)
+    raw_tables, raw_text = get_tables_and_text_from_file(file_path)
 
     # Filter relevant tables
-    filtered_tables = filter_relevant_tables(raw_tables)
+    tables = filter_transaction_tables(raw_tables)
 
     # Clean missing (None) values
-    cleaned_tables = clean_missing_values(filtered_tables, raw_text)
+    tables = fill_missing_values_on_tables(tables, raw_text)
 
     # Print tables
-    #print_tables(cleaned_tables)
+    #print_tables(tables)
 
 
 if __name__ == "__main__":
